@@ -149,13 +149,13 @@ int emulate_step() {
         case 0x05: // DCR B
             dcr(&b);
             break;
-            /* case 0x06:
-                 printf("MVI B,#$");
-                 READ_1_BYTE;
-                 break;
-             case 0x07:
-                 printf("RLC");
-                 break; */
+        case 0x06: // MVI B,#$
+            b = opcode[1];
+            pc++;
+            break;
+            /*case 0x07:
+                printf("RLC");
+                break; */
         case 0x08:  // NOP
             break;
             /* case 0x09:
@@ -173,13 +173,13 @@ int emulate_step() {
         case 0x0d: // DCR C
             dcr(&c);
             break;
-            /* case 0x0e:
-                  printf("MVI C,#$");
-                  READ_1_BYTE;
-                  break;
-              case 0x0f:
-                  printf("RRC");
-                  break; */
+        case 0x0e: // MVI C,#$
+            c = opcode[1];
+            pc++;
+            break;
+            /*   case 0x0f:
+                   printf("RRC");
+                   break; */
         case 0x10: // NOP
             break;
         case 0x11: // LXI D,#$
@@ -200,13 +200,13 @@ int emulate_step() {
         case 0x15: // DCR D
             dcr(&d);
             break;
-            /*  case 0x16:
-                  printf("MVI D,#$");
-                  READ_1_BYTE;
-                  break;
-              case 0x17:
-                  printf("RAL");
-                  break; */
+        case 0x16: // MVI D,#$
+            d = opcode[1];
+            pc++;
+            break;
+            /*case 0x17:
+                printf("RAL");
+                break;*/
         case 0x18: // NOP
             break;
             /*case 0x19:
@@ -224,13 +224,13 @@ int emulate_step() {
         case 0x1d: // DCR E
             dcr(&e);
             break;
-            /*   case 0x1e:
-                   printf("MVI E,#$");
-                   READ_1_BYTE;
-                   break;
-               case 0x1f:
-                   printf("RAR");
-                   break; */
+        case 0x1e: // MVI E,#$
+            e = opcode[1];
+            pc++;
+            break;
+            /*  case 0x1f:
+                  printf("RAR");
+                  break; */
         case 0x20: // NOP
             break;
         case 0x21: // LXI H,#$
@@ -251,13 +251,13 @@ int emulate_step() {
         case 0x25: // DCR H
             dcr(&h);
             break;
-            /* case 0x26:
-                 printf("MVI H,#$");
-                 READ_1_BYTE;
-                 break;
-             case 0x27:
-                 printf("DAA");
-                 break; */
+        case 0x26: // MVI H,#$
+            h = opcode[1];
+            pc++;
+            break;
+            /*case 0x27:
+                printf("DAA");
+                break;*/
         case 0x28: // NOP
             break;
             /* case 0x29:
@@ -276,13 +276,13 @@ int emulate_step() {
         case 0x2d: // DCR L
             dcr(&l);
             break;
-            /*       case 0x2e:
-                        printf("MVI L,#$");
-                        READ_1_BYTE;
-                        break;
-                    case 0x2f:
-                        printf("CMA");
-                        break; */
+        case 0x2e: // MVI L,#$"
+            l = opcode[1];
+            pc++;
+            break;
+        case 0x2f: // CMA
+            a = ~a;
+            break;
         case 0x30: // NOP
             break;
             /*
@@ -303,14 +303,13 @@ int emulate_step() {
         case 0x35: // DCR M
             dcr(&memory[WORD(h, l)]);
             break;
-            /*   case 0x36:
-                   printf("MVI M,#$");
-                   READ_1_BYTE;
-                   break;
-               case 0x37:
-                   printf("STC");
-                   break;
-                   */
+        case 0x36: // MVI M,#$"
+            memory[WORD(h, l)] = opcode[1];
+            pc++;
+            break;
+        case 0x37: // STC
+            cy = 1;
+            break;
         case 0x38: // NOP
             break;
             /*
@@ -330,14 +329,13 @@ int emulate_step() {
         case 0x3d: // DCR A
             dcr(&a);
             break;
-            /* case 0x3e:
-                 printf("MVI A,#$");
-                 READ_1_BYTE;
-                 break;
-             case 0x3f:
-                 printf("CMC");
-                 break;
-                 */
+        case 0x3e: // MVI A,#$"
+            a = opcode[1];
+            pc++;
+            break;
+        case 0x3f: // CMC
+            cy = ~cy;
+            break;
         case 0x40: //MOV B,B
             b = b;
             break;
