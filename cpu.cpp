@@ -26,6 +26,19 @@ uint16_t pc;     //program counter
 uint8_t *memory;
 uint8_t int_enable;
 
+
+void push_ret_to_stack() {
+    sp -= 2;
+    memory[sp + 1] = (pc >> 8) & 0xff;
+    memory[sp] = pc & 0xff;
+}
+
+void pop_ret_from_stack() {
+    pc = WORD(memory[sp + 1], memory[sp]);
+    sp += 2;
+}
+
+
 uint8_t parity(uint8_t x) {
     int i;
     int parity = 0;
@@ -128,14 +141,15 @@ void cmp(const uint8_t *x) {
 
 int emulate_step() {
     unsigned char *opcode = &memory[pc];
-    disassemble(memory, pc);
+    int opbytes = disassemble(memory, pc);
+    pc = pc + opbytes;
+
     switch (*opcode) {
         case 0x00: // NOP
             break;
         case 0x01: // LXI B,#$
             b = opcode[2];
             c = opcode[1];
-            pc += 2;
             break;
         case 0x02: // STAX B
             memory[WORD(b, c)] = a;
@@ -151,7 +165,6 @@ int emulate_step() {
             break;
         case 0x06: // MVI B,#$
             b = opcode[1];
-            pc++;
             break;
             /*case 0x07:
                 printf("RLC");
@@ -160,10 +173,10 @@ int emulate_step() {
             break;
             /* case 0x09:
                  printf("DAD B");
-                 break;
-             case 0x0a:
-                 printf("LDAX B");
                  break; */
+        case 0x0a: // LDAX B
+            a = memory[WORD(b, c)];
+            break;
         case 0x0b: // DCX B
             dcx(&b, &c);
             break;
@@ -175,7 +188,6 @@ int emulate_step() {
             break;
         case 0x0e: // MVI C,#$
             c = opcode[1];
-            pc++;
             break;
             /*   case 0x0f:
                    printf("RRC");
@@ -185,7 +197,6 @@ int emulate_step() {
         case 0x11: // LXI D,#$
             d = opcode[2];
             e = opcode[1];
-            pc += 2;
             break;
             /*
             case 0x12:
@@ -202,7 +213,6 @@ int emulate_step() {
             break;
         case 0x16: // MVI D,#$
             d = opcode[1];
-            pc++;
             break;
             /*case 0x17:
                 printf("RAL");
@@ -211,10 +221,10 @@ int emulate_step() {
             break;
             /*case 0x19:
                 printf("DAD D");
-                break;
-            case 0x1a:
-                printf("LDAX D");
                 break; */
+        case 0x1a: // LDAX D
+            a = memory[WORD(d, e)];
+            break;
         case 0x1b: //DCX D
             dcx(&d, &e);
             break;
@@ -226,7 +236,6 @@ int emulate_step() {
             break;
         case 0x1e: // MVI E,#$
             e = opcode[1];
-            pc++;
             break;
             /*  case 0x1f:
                   printf("RAR");
@@ -236,7 +245,6 @@ int emulate_step() {
         case 0x21: // LXI H,#$
             h = opcode[2];
             l = opcode[1];
-            pc += 2;
             break;
             /*case 0x22:
                 printf("SHLD $");
@@ -253,7 +261,6 @@ int emulate_step() {
             break;
         case 0x26: // MVI H,#$
             h = opcode[1];
-            pc++;
             break;
             /*case 0x27:
                 printf("DAA");
@@ -278,22 +285,19 @@ int emulate_step() {
             break;
         case 0x2e: // MVI L,#$"
             l = opcode[1];
-            pc++;
             break;
         case 0x2f: // CMA
             a = ~a;
             break;
         case 0x30: // NOP
             break;
-            /*
-            case 0x31:
-                printf("LXI SP,#$");
-                READ_2_BYTE;
-                break;
-            case 0x32:
-                printf("STA $");
-                READ_2_BYTE;
-                break; */
+        case 0x31: // LXI SP,#$
+            sp = WORD(opcode[2], opcode[1]);
+            break;
+            /*   case 0x32:
+                   printf("STA $");
+                   READ_2_BYTE;
+                   break; */
         case 0x33: // INX SP
             sp++;
             break;
@@ -305,7 +309,6 @@ int emulate_step() {
             break;
         case 0x36: // MVI M,#$"
             memory[WORD(h, l)] = opcode[1];
-            pc++;
             break;
         case 0x37: // STC
             cy = 1;
@@ -331,7 +334,6 @@ int emulate_step() {
             break;
         case 0x3e: // MVI A,#$"
             a = opcode[1];
-            pc++;
             break;
         case 0x3f: // CMC
             cy = ~cy;
@@ -729,8 +731,8 @@ int emulate_step() {
         case 0xc2: // JNZ $
             if (z == 0)
                 pc = WORD(opcode[2], opcode[1]);
-            else
-                pc = pc + 2;
+            // else
+            //     pc = pc + 2; //TODO: not sure if commented? should debug
             break;
         case 0xc3: // JMP $
             pc = WORD(opcode[2], opcode[1]);
@@ -751,65 +753,65 @@ int emulate_step() {
                    break;
                case 0xc8:
                    printf("RZ");
-                   break;
-               case 0xc9:
-                   printf("RET");
-                   break;
-               case 0xca:
-                   printf("JZ $");
-                   READ_2_BYTE;
-                   break;
-       */
+                   break; */
+        case 0xc9: // RET
+            pop_ret_from_stack();
+            break;
+            /* case 0xca:
+                 printf("JZ $");
+                 READ_2_BYTE;
+                 break;
+     */
         case 0xcb: // NOP
             break;
             /*
        case 0xcc:
            printf("CZ $");
            READ_2_BYTE;
-           break;
-       case 0xcd:
-           printf("CALL $");
-           READ_2_BYTE;
-           break;
-       case 0xce:
-           printf("ACI #$");
-           READ_1_BYTE;
-           break;
-       case 0xcf:
-           printf("RST 1");
-           break;
-       case 0xd0:
-           printf("RNC");
-           break;
-       case 0xd1:
-           printf("POP D");
-           break;
-       case 0xd2:
-           printf("JNC $");
-           READ_2_BYTE;
-           break;
-       case 0xd3:
-           printf("OUT #$");
-           READ_1_BYTE;
-           break;
-       case 0xd4:
-           printf("CNC $");
-           READ_2_BYTE;
-           break;
-       case 0xd5:
-           printf("PUSH D");
-           break;
-       case 0xd6:
-           printf("SUI $");
-           READ_1_BYTE;
-           break;
-       case 0xd7:
-           printf("RST 2");
-           break;
-       case 0xd8:
-           printf("RC");
-           break;
-*/
+           break; */
+        case 0xcd: // CALL $
+            push_ret_to_stack();
+            pc = WORD(opcode[2], opcode[1]);
+            break;
+            /*case 0xce:
+                printf("ACI #$");
+                READ_1_BYTE;
+                break;
+            case 0xcf:
+                printf("RST 1");
+                break;
+            case 0xd0:
+                printf("RNC");
+                break;
+            case 0xd1:
+                printf("POP D");
+                break;
+            case 0xd2:
+                printf("JNC $");
+                READ_2_BYTE;
+                break;
+            case 0xd3:
+                printf("OUT #$");
+                READ_1_BYTE;
+                break;
+            case 0xd4:
+                printf("CNC $");
+                READ_2_BYTE;
+                break;
+            case 0xd5:
+                printf("PUSH D");
+                break;
+            case 0xd6:
+                printf("SUI $");
+                READ_1_BYTE;
+                break;
+            case 0xd7:
+                printf("RST 2");
+                break;
+            case 0xd8:
+                printf("RC");
+                break;
+     */
         case 0xd9: // NOP
             break;
             /*
@@ -855,32 +857,31 @@ int emulate_step() {
                 break;
             case 0xe5:
                 printf("PUSH H");
-                break;
-            case 0xe6:
-                printf("ANI #$");
-                READ_1_BYTE;
-                break;
-            case 0xe7:
-                printf("RST 4");
-                break;
-            case 0xe8:
-                printf("RPE");
-                break;
-            case 0xe9:
-                printf("PCHL");
-                break;
-            case 0xea:
-                printf("JPE $");
-                READ_2_BYTE;
-                break;
-            case 0xeb:
-                printf("XCHG");
-                break;
-            case 0xec:
-                printf("CPE $");
-                READ_2_BYTE;
-                break;
-    */
+                break; */
+        case 0xe6: // ANI #$
+            ana(&memory[pc + 1]);
+            break;
+            /*   case 0xe7:
+                   printf("RST 4");
+                   break;
+               case 0xe8:
+                   printf("RPE");
+                   break;
+               case 0xe9:
+                   printf("PCHL");
+                   break;
+               case 0xea:
+                   printf("JPE $");
+                   READ_2_BYTE;
+                   break;
+               case 0xeb:
+                   printf("XCHG");
+                   break;
+               case 0xec:
+                   printf("CPE $");
+                   READ_2_BYTE;
+                   break;
+       */
         case 0xed: // NOP
             break;
             /*
@@ -938,18 +939,15 @@ int emulate_step() {
                  */
         case 0xfd: // NOP
             break;
-            /*
-            case 0xfe:
-                printf("CPI #$");
-                READ_1_BYTE;
-                break;
-            case 0xff:
-                printf("RST 7");
-                break;
-                 */
+        case 0xfe: // CPI #$
+            cmp(&memory[pc + 1]);
+            break;
+            /*  case 0xff: // RST 7
+                  //rst();
+                  break; */
         default:
             printf("Unimplemented instruction\n");
             exit(1);
     }
-    return ++pc;  //increment and return pc
+    return pc;  //increment and return pc
 }
