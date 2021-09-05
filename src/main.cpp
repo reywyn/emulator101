@@ -1,8 +1,9 @@
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include "cpu.h"
 
-long load_game(char *filepath) {
+long load_game(char *filepath, long start_addr) {
     FILE *f = fopen(filepath, "rb");
     if (f == nullptr) {
         printf("error: Couldn't open %s\n", filepath);
@@ -13,44 +14,21 @@ long load_game(char *filepath) {
     long fsize = ftell(f);
     fseek(f, 0L, SEEK_SET);
 
-    init(fsize, f);
+    init(fsize, f, start_addr);
     fclose(f);
 
     return fsize;
 }
 
 int main(int argc, char **argv) {
-
-
-    long fsize = load_game(argv[1]);
+    if (argc == 2)
+        long fsize = load_game(argv[1], 0);
+    else if (argc == 3)
+        long fsize = load_game(argv[1], std::stol(argv[2], 0, 16));
+    else
+        exit(1);
 
     while (true) {
         emulate_step();
     }
-
-
-
-
-    /* FILE *f = fopen(argv[1], "rb");
-     if (f == nullptr) {
-         printf("error: Couldn't open %s\n", argv[1]);
-         exit(1);
-     }
-
-     //Get the file size and read it into a memory buffer
-     fseek(f, 0L, SEEK_END);
-     int fsize = ftell(f);
-     fseek(f, 0L, SEEK_SET);
-
-     auto *buffer = static_cast<unsigned char *>(malloc(fsize));
-
-     fread(buffer, fsize, 1, f);
-     fclose(f);
-
-     int pc = 0;
-
-     while (pc < fsize) {
-         pc += disassemble(buffer, pc);
-     }
-     return 0;*/
 }

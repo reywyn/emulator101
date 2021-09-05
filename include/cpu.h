@@ -3,7 +3,7 @@
 
 #define WORD(x, y) ((x<<8) | y)
 
-void init(long i, FILE *pFile);
+void init(long fsize, FILE *f, long start_addr);
 
 void emulate_step();
 

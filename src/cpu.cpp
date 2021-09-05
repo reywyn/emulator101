@@ -6,12 +6,12 @@
 
 
 // condition codes
-uint8_t z = 1;   //zero
-uint8_t s = 1;   //sign
-uint8_t p = 1;   //parity
-uint8_t cy = 1;  //carry
-uint8_t ac = 1;  //aux carry
-uint8_t pad = 3;
+uint8_t z;  //zero
+uint8_t s;  //sign
+uint8_t p;  //parity
+uint8_t cy;  //carry
+uint8_t ac; //aux carry
+uint8_t pad;
 
 // registers
 uint8_t a;
@@ -146,11 +146,27 @@ static inline void cmp(const uint8_t *x) {
 }
 
 
-void init(long fsize, FILE *f) {
-    memory = static_cast<unsigned char *>(malloc(fsize));
-    fread(memory, fsize, 1, f);
+//TODO:  should free this memory on end
+void init(long fsize, FILE *f, long start_addr) {
+    memory = static_cast<unsigned char *>(malloc(fsize + start_addr));
+    fread(&memory[start_addr], fsize, 1, f);
+    pc = start_addr;
 
-    pc = 0;
+    z = 0;
+    s = 0;
+    p = 0;
+    cy = 0;
+    ac = 0;
+    pad = 3;
+    a = 0;
+    b = 0;
+    c = 0;
+    d = 0;
+    e = 0;
+    h = 0;
+    l = 0;
+    sp = 0;
+    int_enable = 0;
 }
 
 void emulate_step() {
