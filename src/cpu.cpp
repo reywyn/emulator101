@@ -2,8 +2,8 @@
 #include <cstdio>
 
 #include "disassembler.h"
+#include "cpu.h"
 
-#define WORD(x, y) ((x<<8) | y)
 
 // condition codes
 uint8_t z = 1;   //zero
@@ -27,19 +27,25 @@ uint8_t *memory;
 uint8_t int_enable;
 
 
-void push_ret_to_stack() {
+static inline void push_ret_to_stack() {
     sp -= 2;
     memory[sp + 1] = (pc >> 8) & 0xff;
     memory[sp] = pc & 0xff;
 }
 
-void pop_ret_from_stack() {
+static inline void pop_ret_from_stack() {
     pc = WORD(memory[sp + 1], memory[sp]);
     sp += 2;
 }
 
+static inline void dad(uint16_t x) {
+    uint16_t answer = x + (uint16_t) WORD(h, l);
+    h = (answer >> 8) | 0xff;
+    l = answer | 0xff;
+    cy = (answer > 0xff);
+}
 
-uint8_t parity(uint8_t x) {
+static inline uint8_t parity(uint8_t x) {
     int i;
     int parity = 0;
     x = (x & ((1 << 8) - 1));
@@ -50,96 +56,104 @@ uint8_t parity(uint8_t x) {
     return (0 == (parity & 0x1));
 }
 
-void condition_codes(uint16_t x) {
+static inline void condition_codes(uint16_t x) {
     z = ((x & 0xff) == 0);
     s = ((x & 0x80) != 0);
     cy = (x > 0xff);
     p = parity(x & 0xff);
 }
 
-void inx(uint8_t *x, uint8_t *y) {
+static inline void inx(uint8_t *x, uint8_t *y) {
     *y++;
     if (*y == 0)
         *x++;
 }
 
 // Probably wrong, but not used
-void dcx(uint8_t *x, uint8_t *y) {
+static inline void dcx(uint8_t *x, uint8_t *y) {
     *y--;
     if (*y == 0)
         *x--;
 }
 
-void inr(uint8_t *x) {
+static inline void inr(uint8_t *x) {
     uint16_t answer = (uint16_t) *x + 1;
     condition_codes(answer);
     *x = answer & 0xff;
 }
 
-void dcr(uint8_t *x) {
+static inline void dcr(uint8_t *x) {
     uint16_t answer = (uint16_t) *x - 1;
     condition_codes(answer);
     *x = answer & 0xff;
 }
 
-void inr(uint16_t *x) {
+static inline void inr(uint16_t *x) {
     *x = *x + 1;
     condition_codes(*x);
 }
 
-void dcr(uint16_t *x) {
+static inline void dcr(uint16_t *x) {
     *x = *x - 1;
     condition_codes(*x);
 }
 
-void add(const uint8_t *x) {
+static inline void add(const uint8_t *x) {
     uint16_t answer = (uint16_t) a + (uint16_t) *x;
     condition_codes(answer);
     a = answer & 0xff;
 }
 
-void adc(const uint8_t *x) {
+static inline void adc(const uint8_t *x) {
     uint16_t answer = (uint16_t) a + (uint16_t) *x + (uint16_t) cy;
     condition_codes(answer);
     a = answer & 0xff;
 }
 
-void sub(const uint8_t *x) {
+static inline void sub(const uint8_t *x) {
     uint16_t answer = (uint16_t) a - (uint16_t) *x;
     condition_codes(answer);
     a = answer & 0xff;
 }
 
-void sbb(const uint8_t *x) {
+static inline void sbb(const uint8_t *x) {
     uint16_t answer = (uint16_t) a - (uint16_t) *x - (uint16_t) cy;
     condition_codes(answer);
     a = answer & 0xff;
 }
 
-void ana(const uint8_t *x) {
+static inline void ana(const uint8_t *x) {
     uint16_t answer = (uint16_t) a & (uint16_t) *x;
     condition_codes(answer);
     a = answer & 0xff;
 }
 
-void xra(const uint8_t *x) {
+static inline void xra(const uint8_t *x) {
     uint16_t answer = (uint16_t) a ^ (uint16_t) *x;
     condition_codes(answer);
     a = answer & 0xff;
 }
 
-void ora(const uint8_t *x) {
+static inline void ora(const uint8_t *x) {
     uint16_t answer = (uint16_t) a | (uint16_t) *x;
     condition_codes(answer);
     a = answer & 0xff;
 }
 
-void cmp(const uint8_t *x) {
+static inline void cmp(const uint8_t *x) {
     uint16_t answer = (uint16_t) a - (uint16_t) *x;
     condition_codes(answer);
 }
 
-int emulate_step() {
+
+void init(long fsize, FILE *f) {
+    memory = static_cast<unsigned char *>(malloc(fsize));
+    fread(memory, fsize, 1, f);
+
+    pc = 0;
+}
+
+void emulate_step() {
     unsigned char *opcode = &memory[pc];
     int opbytes = disassemble(memory, pc);
     pc = pc + opbytes;
@@ -171,9 +185,9 @@ int emulate_step() {
                 break; */
         case 0x08:  // NOP
             break;
-            /* case 0x09:
-                 printf("DAD B");
-                 break; */
+        case 0x09: // DAD B
+            dad((uint16_t) WORD(b, c));
+            break;
         case 0x0a: // LDAX B
             a = memory[WORD(b, c)];
             break;
@@ -219,9 +233,9 @@ int emulate_step() {
                 break;*/
         case 0x18: // NOP
             break;
-            /*case 0x19:
-                printf("DAD D");
-                break; */
+        case 0x19:// DAD D
+            dad((uint16_t) WORD(d, e));
+            break;
         case 0x1a: // LDAX D
             a = memory[WORD(d, e)];
             break;
@@ -267,13 +281,13 @@ int emulate_step() {
                 break;*/
         case 0x28: // NOP
             break;
-            /* case 0x29:
-                printf("DAD H");
-                break;
-            case 0x2a:
-                printf("LHLD $");
-                READ_2_BYTE;
-                break; */
+        case 0x29: // DAD H
+            dad((uint16_t) WORD(h, l));
+            break;
+            /*   case 0x2a:
+                   printf("LHLD $");
+                   READ_2_BYTE;
+                   break;*/
         case 0x2b: // DCX H
             dcx(&h, &l);
             break;
@@ -315,14 +329,13 @@ int emulate_step() {
             break;
         case 0x38: // NOP
             break;
-            /*
-            case 0x39:
-                printf("DAD SP");
-                break;
-            case 0x3a:
-                printf("LDA $");
-                READ_2_BYTE;
-                break; */
+        case 0x39: // DAD SP
+            dad(sp);
+            break;
+            /*   case 0x3a:
+                   printf("LDA $");
+                   READ_2_BYTE;
+                   break; */
         case 0x3b:// DCX SP
             sp--;
             break;
@@ -949,5 +962,4 @@ int emulate_step() {
             printf("Unimplemented instruction\n");
             exit(1);
     }
-    return pc;  //increment and return pc
 }

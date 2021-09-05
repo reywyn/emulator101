@@ -6,6 +6,4 @@
 
 int disassemble(unsigned char *codebuffer, int _pc);
 
-#include "disassembler.cpp"
-
 #endif //EMULATOR101_DISASSEMBLER_H

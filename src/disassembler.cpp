@@ -1,6 +1,8 @@
 #include <cstdlib>
 #include <cstdio>
 
+#include "disassembler.h"
+
 int disassemble(unsigned char *codebuffer, int _pc) {
     unsigned char *code = &codebuffer[_pc];
     int opbytes = 1;
