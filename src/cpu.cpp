@@ -27,6 +27,42 @@ uint8_t *memory;
 uint8_t int_enable;
 
 
+void load_test_code() {
+    // inject "out 0,a" at 0x0000 (signal to stop the test)
+    memory[0x0000] = 0xD3;
+    memory[0x0001] = 0x00;
+
+    // inject "out 1,a" at 0x0005 (signal to output some characters)
+    memory[0x0005] = 0xD3;
+    memory[0x0006] = 0x01;
+    memory[0x0007] = 0xC9;
+
+}
+
+static inline uint8_t port_in() {
+    return 0x00;
+}
+
+static inline void port_out(uint8_t port) {
+
+    /*if (port == 0) {
+        test_finished = 1;
+    } else  */
+
+    if (port == 1) {
+        uint8_t operation = c;
+
+        if (operation == 2) { // print a character stored in E
+            printf("%c", e);
+        } else if (operation == 9) { // print from memory at (DE) until '$' char
+            uint16_t addr = WORD(d, e);
+            do {
+                printf("%c", memory[addr++]);
+            } while (memory[addr] != '$');
+        }
+    }
+}
+
 static inline void push_ret_to_stack() {
     sp -= 2;
     memory[sp + 1] = (pc >> 8) & 0xff;
@@ -145,13 +181,20 @@ static inline void cmp(const uint8_t *x) {
     condition_codes(answer);
 }
 
+void allocate_memory(long memsize) {
+    memory = static_cast<unsigned char *>(malloc(memsize));
+}
 
-//TODO:  should free this memory on end
-void init(long fsize, FILE *f, long start_addr) {
-    memory = static_cast<unsigned char *>(malloc(fsize + start_addr));
-    fread(&memory[start_addr], fsize, 1, f);
+void load(long fsize, FILE *f) {
+    fread(&memory[pc], fsize, 1, f);
+}
+
+void free() {
+    free(memory);
+}
+
+void init(long start_addr) {
     pc = start_addr;
-
     z = 0;
     s = 0;
     p = 0;
@@ -818,12 +861,11 @@ void emulate_step() {
             case 0xd2:
                 printf("JNC $");
                 READ_2_BYTE;
-                break;
-            case 0xd3:
-                printf("OUT #$");
-                READ_1_BYTE;
-                break;
-            case 0xd4:
+                break; */
+        case 0xd3:
+            port_out(1);
+            break;
+            /* case 0xd4:
                 printf("CNC $");
                 READ_2_BYTE;
                 break;
@@ -847,16 +889,15 @@ void emulate_step() {
        case 0xda:
            printf("JC $");
            READ_2_BYTE;
-           break;
-       case 0xdb:
-           printf("IN $");
-           READ_1_BYTE;
-           break;
-       case 0xdc:
-           printf("CC $");
-           READ_2_BYTE;
-           break;
-*/
+           break; */
+        case 0xdb: //IN $
+            port_in();
+            break;
+            /*    case 0xdc:
+                    printf("CC $");
+                    READ_2_BYTE;
+                    break;
+         */
         case 0xdd: // NOP
             break;
             /*

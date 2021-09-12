@@ -3,7 +3,15 @@
 
 #define WORD(x, y) ((x<<8) | y)
 
-void init(long fsize, FILE *f, long start_addr);
+void load_test_code();
+
+void allocate_memory(long memsize);
+
+void load(long fsize, FILE *f);
+
+void free();
+
+void init(long start_addr);
 
 void emulate_step();
 

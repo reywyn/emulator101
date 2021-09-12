@@ -3,7 +3,15 @@
 #include <string>
 #include "cpu.h"
 
-long load_game(char *filepath, long start_addr) {
+
+long init_test() {
+    init(0x100);
+    allocate_memory(0x10000);
+    load_test_code();
+}
+
+
+long load_rom(char *filepath, bool should_alloc) {
     FILE *f = fopen(filepath, "rb");
     if (f == nullptr) {
         printf("error: Couldn't open %s\n", filepath);
@@ -14,21 +22,47 @@ long load_game(char *filepath, long start_addr) {
     long fsize = ftell(f);
     fseek(f, 0L, SEEK_SET);
 
-    init(fsize, f, start_addr);
+    if (should_alloc)
+        allocate_memory(fsize);
+
+    load(fsize, f);
     fclose(f);
 
     return fsize;
 }
 
-int main(int argc, char **argv) {
-    if (argc == 2)
-        long fsize = load_game(argv[1], 0);
-    else if (argc == 3)
-        long fsize = load_game(argv[1], std::stol(argv[2], 0, 16));
-    else
-        exit(1);
 
+void run() {
     while (true) {
         emulate_step();
     }
+}
+
+int main(int argc, char **argv) {
+
+    if (strcmp(argv[1], "test") == 0) {
+        init_test();
+        load_rom((char *) "test/TST8080.COM", false);
+        run();
+        free();
+
+        init_test();
+        load_rom((char *) "test/CPUTEST.COM", false);
+        free();
+
+        init_test();
+        load_rom((char *) "test/8080PRE.COM", false);
+        free();
+
+        init_test();
+        load_rom((char *) "test/8080EXM.COM", false);
+        free();
+
+        exit(1);
+    }
+
+    init(0);
+    load_rom(argv[1], true);
+    run();
+    free();
 }
