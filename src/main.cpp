@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
 
     if (strcmp(argv[1], "test") == 0) {
         init_test();
-        load_rom((char *) "test/TST8080.COM", false);
+        load_rom((char *) "/Users/emre/Projects/emre/emulator101/roms/test/TST8080.COM", false);
         run();
         free();
 

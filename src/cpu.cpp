@@ -63,13 +63,44 @@ static inline void port_out(uint8_t port) {
     }
 }
 
-static inline void push_ret_to_stack() {
+static inline void push(const uint8_t *x, const uint8_t *y) {
+    memory[sp - 1] = *x;
+    memory[sp - 2] = *y;
     sp -= 2;
-    memory[sp + 1] = (pc >> 8) & 0xff;
-    memory[sp] = pc & 0xff;
+
 }
 
-static inline void pop_ret_from_stack() {
+static inline void pop(uint8_t *x, uint8_t *y) {
+    *x = memory[sp];
+    *y = memory[sp + 1];
+    sp += 2;
+}
+
+static inline void push_psw() {
+    memory[sp - 1] = a;
+    uint8_t psw = (z | s << 1 | p << 2 | cy << 3 | ac << 4);
+    memory[sp - 2] = psw;
+    sp -= 2;
+}
+
+static inline void pop_psw() {
+    a = memory[sp + 1];
+    uint8_t psw = memory[sp];
+    z = (0x01 == (psw & 0x01));
+    s = (0x02 == (psw & 0x02));
+    p = (0x04 == (psw & 0x04));
+    cy = (0x08 == (psw & 0x08));
+    ac = (0x10 == (psw & 0x10));
+    sp += 2;
+}
+
+static inline void push_ret() {
+    memory[sp - 1] = (pc >> 8) & 0xff;
+    memory[sp - 2] = pc & 0xff;
+    sp -= 2;
+}
+
+static inline void pop_ret() {
     pc = WORD(memory[sp + 1], memory[sp]);
     sp += 2;
 }
@@ -796,10 +827,10 @@ void emulate_step() {
             /*
         case 0xc0:
             printf("RNZ");
-            break;
-        case 0xc1:
-            printf("POP B");
             break; */
+        case 0xc1: // POP B
+            pop(&b, &c);
+            break;
         case 0xc2: // JNZ $
             if (z == 0)
                 pc = WORD(opcode[2], opcode[1]);
@@ -812,22 +843,22 @@ void emulate_step() {
             /*   case 0xc4:
                    printf("CNZ $");
                    READ_2_BYTE;
-                   break;
-               case 0xc5:
-                   printf("PUSH B");
-                   break;
-               case 0xc6:
-                   printf("ADI #$");
-                   READ_1_BYTE;
-                   break;
-               case 0xc7:
-                   printf("RST 0");
-                   break;
-               case 0xc8:
-                   printf("RZ");
                    break; */
+        case 0xc5: // PUSH B
+            push(&b, &c);
+            break;
+            /*     case 0xc6:
+                     printf("ADI #$");
+                     READ_1_BYTE;
+                     break;
+                 case 0xc7:
+                     printf("RST 0");
+                     break;
+                 case 0xc8:
+                     printf("RZ");
+                     break; */
         case 0xc9: // RET
-            pop_ret_from_stack();
+            pop_ret();
             break;
             /* case 0xca:
                  printf("JZ $");
@@ -842,7 +873,7 @@ void emulate_step() {
            READ_2_BYTE;
            break; */
         case 0xcd: // CALL $
-            push_ret_to_stack();
+            push_ret();
             pc = WORD(opcode[2], opcode[1]);
             break;
             /*case 0xce:
@@ -854,35 +885,35 @@ void emulate_step() {
                 break;
             case 0xd0:
                 printf("RNC");
-                break;
-            case 0xd1:
-                printf("POP D");
-                break;
-            case 0xd2:
-                printf("JNC $");
-                READ_2_BYTE;
                 break; */
+        case 0xd1: // POP D
+            pop(&d, &e);
+            break;
+            /* case 0xd2:
+                 printf("JNC $");
+                 READ_2_BYTE;
+                 break; */
         case 0xd3:
             port_out(1);
             break;
             /* case 0xd4:
                 printf("CNC $");
                 READ_2_BYTE;
-                break;
-            case 0xd5:
-                printf("PUSH D");
-                break;
-            case 0xd6:
-                printf("SUI $");
-                READ_1_BYTE;
-                break;
-            case 0xd7:
-                printf("RST 2");
-                break;
-            case 0xd8:
-                printf("RC");
-                break;
-     */
+                break; */
+        case 0xd5: // PUSH D
+            push(&d, &e);
+            break;
+            /* case 0xd6:
+                 printf("SUI $");
+                 READ_1_BYTE;
+                 break;
+             case 0xd7:
+                 printf("RST 2");
+                 break;
+             case 0xd8:
+                 printf("RC");
+                 break;
+      */
         case 0xd9: // NOP
             break;
             /*
@@ -910,24 +941,24 @@ void emulate_step() {
                 break;
             case 0xe0:
                 printf("RPO");
-                break;
-            case 0xe1:
-                printf("POP H");
-                break;
-            case 0xe2:
-                printf("JPO $");
-                READ_2_BYTE;
-                break;
-            case 0xe3:
-                printf("XTHL");
-                break;
-            case 0xe4:
-                printf("CPO $");
-                READ_2_BYTE;
-                break;
-            case 0xe5:
-                printf("PUSH H");
                 break; */
+        case 0xe1: //POP H
+            pop(&h, &l);
+            break;
+            /*  case 0xe2:
+                  printf("JPO $");
+                  READ_2_BYTE;
+                  break;
+              case 0xe3:
+                  printf("XTHL");
+                  break;
+              case 0xe4:
+                  printf("CPO $");
+                  READ_2_BYTE;
+                  break; */
+        case 0xe5: // PUSH H
+            push(&h, &l);
+            break;
         case 0xe6: // ANI #$
             ana(&memory[pc + 1]);
             break;
@@ -964,49 +995,49 @@ void emulate_step() {
                 break;
             case 0xf0:
                 printf("RP");
-                break;
-            case 0xf1:
-                printf("POP PSW");
-                break;
-            case 0xf2:
-                printf("JP $");
-                READ_2_BYTE;
-                break;
-            case 0xf3:
-                printf("DI");
-                break;
-            case 0xf4:
-                printf("CP $");
-                READ_2_BYTE;
-                break;
-            case 0xf5:
-                printf("PUSH PSW");
-                break;
-            case 0xf6:
-                printf("ORI #$");
-                READ_1_BYTE;
-                break;
-            case 0xf7:
-                printf("RST 6");
-                break;
-            case 0xf8:
-                printf("RM");
-                break;
-            case 0xf9:
-                printf("SPHL");
-                break;
-            case 0xfa:
-                printf("JM $");
-                READ_2_BYTE;
-                break;
-            case 0xfb:
-                printf("EI");
-                break;
-            case 0xfc:
-                printf("CM $");
-                READ_2_BYTE;
-                break;
-                 */
+                break; */
+        case 0xf1: // POP PSW
+            pop_psw();
+            break;
+            /*  case 0xf2:
+                 printf("JP $");
+                 READ_2_BYTE;
+                 break;
+             case 0xf3:
+                 printf("DI");
+                 break;
+             case 0xf4:
+                 printf("CP $");
+                 READ_2_BYTE;
+                 break; */
+        case 0xf5: // PUSH PSW
+            push_psw();
+            break;
+            /*   case 0xf6:
+                   printf("ORI #$");
+                   READ_1_BYTE;
+                   break;
+               case 0xf7:
+                   printf("RST 6");
+                   break;
+               case 0xf8:
+                   printf("RM");
+                   break;
+               case 0xf9:
+                   printf("SPHL");
+                   break;
+               case 0xfa:
+                   printf("JM $");
+                   READ_2_BYTE;
+                   break;
+               case 0xfb:
+                   printf("EI");
+                   break;
+               case 0xfc:
+                   printf("CM $");
+                   READ_2_BYTE;
+                   break;
+                   */
         case 0xfd: // NOP
             break;
         case 0xfe: // CPI #$
